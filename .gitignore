@@ -1,0 +1,30 @@
+# Julia
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+Manifest.toml
+
+# Downloaded binaries
+/lib/
+
+# Local builds (keep deps/ structure but ignore binaries)
+/deps/*.so
+/deps/*.dylib
+/deps/*.dll
+/deps/*.o
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.log

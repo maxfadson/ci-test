@@ -249,6 +249,7 @@ export aws_s3_library_init,
 
 using CEnum: CEnum, @cenum
 using Libdl
+using Downloads
 
 using aws_c_s3_jll
 import aws_c_auth_jll
@@ -262,8 +263,49 @@ import aws_checksums_jll
 import s2n_tls_jll
 
 const Lib = Libaws_c_s3
-const libs3_jl_shim = normpath(joinpath(@__DIR__, "..", "deps", "libs3_jl_shim.$(Libdl.dlext)"))
 const libaws_c_s3 = aws_c_s3_jll.libaws_c_s3
+
+# Auto-download shim from GitHub releases or use local build
+const libs3_jl_shim = let
+    pkg_dir = dirname(@__DIR__)
+    lib_dir = joinpath(pkg_dir, "lib")
+    lib_name = Sys.iswindows() ? "libs3_jl_shim.dll" :
+               Sys.isapple() ? "libs3_jl_shim.dylib" : "libs3_jl_shim.so"
+    lib_path = joinpath(lib_dir, lib_name)
+
+    # If not in lib/, try to download from GitHub release
+    if !isfile(lib_path)
+        platform = if Sys.islinux()
+            "linux-x86_64"
+        elseif Sys.isapple()
+            Sys.ARCH === :aarch64 ? "macos-aarch64" : "macos-x86_64"
+        elseif Sys.iswindows()
+            "windows-x86_64"
+        end
+
+        # Detect Julia minor version (1.10, 1.11, etc)
+        julia_version = "$(VERSION.major).$(VERSION.minor)"
+
+        try
+            mkpath(lib_dir)
+            # Get version from Project.toml
+            project_toml = read(joinpath(pkg_dir, "Project.toml"), String)
+            version = match(r"version\s*=\s*\"([^\"]+)\"", project_toml)[1]
+
+            url = "https://github.com/maxfadson/ci-test/releases/download/v$version/$platform-julia$julia_version.tar.gz"
+            @info "Downloading binary from $url"
+
+            temp_file = Downloads.download(url)
+            run(`tar -xzf $temp_file -C $lib_dir`)
+            rm(temp_file, force=true)
+        catch e
+            @warn "Failed to download binary for Julia $julia_version, trying local build" exception=e
+        end
+    end
+
+    # Fallback to deps/ if lib/ doesn't exist
+    isfile(lib_path) ? lib_path : normpath(joinpath(pkg_dir, "deps", lib_name))
+end
 
 const time_t = Clong
 const pthread_t = Culong
